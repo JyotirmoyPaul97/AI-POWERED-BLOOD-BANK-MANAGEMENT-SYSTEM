@@ -1,0 +1,17 @@
+{
+  "name": "lifeline-blood-bank",
+  "version": "1.0.0",
+  "description": "LIFELINE - Blood Bank Intelligence System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0"
+  }
+}
