@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIFELINE — Blood Bank Intelligence System</title>
+<meta name="description" content="AI-Powered Blood Bank Management System — Real-time inventory, donor management, hospital requisitions, and intelligent matching.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ============================================================ DESIGN TOKENS ============================================================ */
+:root {
+  --bg: #060810;
+  --bg-2: #0c0e16;
+  --surface: #111520;
+  --surface-2: #171c2e;
+  --surface-3: #1d2340;
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.14);
+
+  --red: #f53b57;
+  --red-dim: #7d1a2b;
+  --red-glow: rgba(245,59,87,0.35);
+  --red-soft: rgba(245,59,87,0.12);
+
+  --blue: #4a9eff;
+  --blue-dim: #1a3d6e;
+  --blue-glow: rgba(74,158,255,0.3);
+  --blue-soft: rgba(74,158,255,0.1);
+
+  --teal: #00d4aa;
+  --teal-soft: rgba(0,212,170,0.1);
+
+  --amber: #ffb547;
+  --amber-soft: rgba(255,181,71,0.12);
+
+  --purple: #a855f7;
+  --purple-soft: rgba(168,85,247,0.12);
+
+  --green: #22c55e;
+  --green-soft: rgba(34,197,94,0.12);
+
+  --text: #f0f2f8;
+  --text-2: #8892a4;
+  --text-3: #4a5568;
+
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  --sidebar-w: 260px;
+  --header-h: 68px;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ============================================================ RESET & BASE ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: var(--red); color: #fff; }
+
+/* Ambient background glow */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 600px at 0% 0%, rgba(245,59,87,0.08), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(74,158,255,0.06), transparent),
+    radial-gradient(ellipse 600px 800px at 50% 100%, rgba(168,85,247,0.04), transparent);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+/* ============================================================ LAYOUT ============================================================ */
+.app-shell { display: flex; min-height: 100vh; position: relative; }
+
+/* --- Sidebar --- */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+  display: flex; flex-direction: column;
+  transition: transform var(--transition);
+}
+
+.sidebar-logo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 22px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--red), #9b1c2e);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px var(--red-glow);
+  flex-shrink: 0;
+  animation: pulse-logo 3s ease-in-out infinite;
+}
+@keyframes pulse-logo {
+  0%,100% { box-shadow: 0 0 20px var(--red-glow); }
+  50% { box-shadow: 0 0 35px rgba(245,59,87,0.55); }
+}
+.logo-text { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+.logo-sub { font-size: 10px; color: var(--text-2); font-family: var(--mono); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+.sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+.nav-section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text-3); padding: 0 12px; margin: 16px 0 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 500; color: var(--text-2);
+  cursor: pointer; transition: all var(--transition);
+  position: relative; margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item.active { background: var(--red-soft); color: var(--red); font-weight: 600; }
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 3px; background: var(--red); border-radius: 0 3px 3px 0;
+}
+.nav-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px;
+  font-family: var(--mono);
+}
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.db-status-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.db-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.db-dot.online { background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.6); }
+.db-dot.offline { background: var(--amber); box-shadow: 0 0 8px rgba(255,181,71,0.6); }
+.db-status-text { font-size: 12px; font-weight: 600; }
+.db-status-sub { font-size: 10px; color: var(--text-2); font-family: var(--mono); }
+
+/* --- Main Content --- */
+.main-content {
+  margin-left: var(--sidebar-w);
+  flex: 1; min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* --- Top Header Bar --- */
+.topbar {
+  height: var(--header-h);
+  background: rgba(6,8,16,0.8); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; gap: 16px;
+}
+.topbar-left { display: flex; flex-direction: column; }
+.topbar-title { font-size: 20px; font-weight: 700; }
+.topbar-sub { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.role-switcher {
+  display: flex; gap: 3px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px;
+}
+.role-btn {
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer;
+  color: var(--text-2); background: transparent;
+  transition: all var(--transition); letter-spacing: 0.3px;
+}
+.role-btn.active { background: var(--red); color: #fff; box-shadow: 0 2px 8px var(--red-glow); }
+.role-btn:not(.active):hover { color: var(--text); background: var(--surface-2); }
+
+/* ============================================================ VIEWS ============================================================ */
+.view { display: none; flex: 1; padding: 32px; animation: fadeSlide 0.35s cubic-bezier(0.16,1,0.3,1); }
+.view.active { display: block; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ============================================================ TYPOGRAPHY HELPERS ============================================================ */
+.page-header { margin-bottom: 28px; }
+.eyebrow { font-family: var(--mono); font-size: 11px; color: var(--red); letter-spacing: 2px; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
+.page-title { font-size: 30px; font-weight: 800; line-height: 1.2; }
+.page-desc { font-size: 14px; color: var(--text-2); margin-top: 6px; max-width: 600px; line-height: 1.6; }
+
+/* ============================================================ CARDS ============================================================ */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  transition: border-color var(--transition);
+}
+.card:hover { border-color: var(--border-hover); }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.card-title-icon { font-size: 16px; }
+
+/* ============================================================ STAT CARDS ============================================================ */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px;
+  position: relative; overflow: hidden; transition: all var(--transition);
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent, var(--blue));
+}
+.stat-card:hover { transform: translateY(-2px); border-color: var(--border-hover); }
+.stat-icon { font-size: 24px; margin-bottom: 12px; }
+.stat-val { font-size: 34px; font-weight: 800; font-family: var(--mono); line-height: 1; color: var(--text); }
+.stat-label { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-top: 6px; }
+.stat-card.danger { --accent: var(--red); border-color: rgba(245,59,87,0.2); background: rgba(245,59,87,0.03); }
+.stat-card.danger .stat-val { color: var(--red); }
+.stat-card.success { --accent: var(--teal); }
+.stat-card.warning { --accent: var(--amber); }
+.stat-card.info { --accent: var(--blue); }
+
+/* ============================================================ BLOOD TYPE VIALS GRID ============================================================ */
+.vials-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 14px; }
+.vial {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 14px; text-align: center;
+  transition: all var(--transition); cursor: default; position: relative;
+  overflow: hidden;
+}
+.vial::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(245,59,87,0.03));
+  pointer-events: none; opacity: 0; transition: opacity var(--transition);
+}
+.vial:hover { transform: translateY(-3px); border-color: rgba(245,59,87,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.vial:hover::after { opacity: 1; }
+.vial-type { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+.vial-count { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 600; }
+.vial-bar-wrap { height: 5px; background: rgba(0,0,0,0.3); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+.vial-bar-fill { height: 100%; border-radius: 3px; transition: width 0.7s cubic-bezier(0.16,1,0.3,1); }
+.vial.ok .vial-bar-fill { background: var(--teal); }
+.vial.low .vial-bar-fill { background: var(--amber); }
+.vial.critical { border-color: rgba(245,59,87,0.4); background: rgba(245,59,87,0.05); }
+.vial.critical .vial-bar-fill { background: var(--red); }
+.vial-adjust {
+  display: flex; justify-content: center; gap: 6px; margin-top: 10px;
+  opacity: 0; transform: translateY(4px); transition: all var(--transition);
+}
+.vial:hover .vial-adjust { opacity: 1; transform: translateY(0); }
+.adj-btn {
+  width: 24px; height: 24px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-2); font-size: 14px; font-weight: bold;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.adj-btn:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* ============================================================ TABLES ============================================================ */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  text-align: left; padding: 10px 14px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background var(--transition); }
+tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.td-name { font-weight: 600; }
+.td-type { font-family: var(--mono); font-weight: 700; color: var(--red); font-size: 15px; }
+.td-muted { color: var(--text-2); font-size: 12.5px; }
+
+/* ============================================================ BADGES / PILLS ============================================================ */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+  border: 1px solid transparent;
+}
+.badge-ok { background: var(--green-soft); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+.badge-warn { background: var(--amber-soft); color: #fbbf24; border-color: rgba(255,181,71,0.2); }
+.badge-crit { background: var(--red-soft); color: #f87171; border-color: rgba(245,59,87,0.25); }
+.badge-muted { background: rgba(255,255,255,0.05); color: var(--text-2); border-color: var(--border); }
+.badge-blue { background: var(--blue-soft); color: #93c5fd; border-color: rgba(74,158,255,0.2); }
+.badge-purple { background: var(--purple-soft); color: #c084fc; border-color: rgba(168,85,247,0.2); }
+.badge-teal { background: var(--teal-soft); color: #2dd4bf; border-color: rgba(0,212,170,0.2); }
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ============================================================ FORM INPUTS ============================================================ */
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-2); margin-bottom: 7px;
+}
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--border);
+  color: var(--text); padding: 11px 14px; border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 14px; outline: none;
+  transition: all var(--transition);
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--red); box-shadow: 0 0 0 3px var(--red-soft);
+  background: rgba(0,0,0,0.4);
+}
+.field select option { background: #1a1d2e; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* Search bar */
+.search-bar {
+  position: relative; margin-bottom: 16px;
+}
+.search-bar input {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 14px 10px 40px; border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 13.5px; outline: none; transition: all var(--transition);
+}
+.search-bar input:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.search-bar::before {
+  content: '🔍'; position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; pointer-events: none;
+}
+
+/* ============================================================ BUTTONS ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 13.5px; font-weight: 700;
+  padding: 11px 20px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  transition: all var(--transition); position: relative; overflow: hidden; letter-spacing: 0.3px;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+.btn-primary { background: var(--red); color: #fff; box-shadow: 0 4px 14px var(--red-glow); }
+.btn-primary:not(:disabled):hover { background: #ff4d67; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,59,87,0.5); }
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:not(:disabled):hover { border-color: var(--border-hover); background: var(--surface-3); }
+.btn-success { background: transparent; color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.btn-success:not(:disabled):hover { background: var(--green-soft); border-color: var(--green); }
+.btn-danger { background: transparent; color: #f87171; border: 1px solid rgba(245,59,87,0.3); }
+.btn-danger:not(:disabled):hover { background: var(--red-soft); border-color: var(--red); }
+.btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+.btn-ghost:not(:disabled):hover { color: var(--text); border-color: var(--border-hover); }
+.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 6px; }
+.btn-block { width: 100%; }
+.btn-icon { padding: 9px; }
+
+/* ============================================================ SPINNER ============================================================ */
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  animation: spin 0.75s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================ EMPTY STATE ============================================================ */
+.empty-state { text-align: center; padding: 52px 20px; color: var(--text-2); }
+.empty-state-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.5; }
+.empty-state-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.empty-state-desc { font-size: 13px; line-height: 1.6; }
+
+/* ============================================================ CHART ============================================================ */
+.chart-wrap { position: relative; height: 200px; }
+
+/* ============================================================ TWO-COL LAYOUT ============================================================ */
+.two-col { display: grid; grid-template-columns: 1.35fr 0.9fr; gap: 20px; }
+.two-col-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media(max-width:1024px) { .two-col, .two-col-equal { grid-template-columns: 1fr; } }
+
+/* ============================================================ MODAL ============================================================ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity var(--transition);
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 32px; width: 100%; max-width: 520px;
+  transform: scale(0.96) translateY(8px); transition: transform var(--transition);
+}
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-title { font-size: 20px; font-weight: 800; }
+.modal-close { background: none; border: none; color: var(--text-2); cursor: pointer; font-size: 22px; transition: color var(--transition); }
+.modal-close:hover { color: var(--text); }
+
+/* ============================================================ ELIGIBILITY RESULT ============================================================ */
+.elig-box {
+  border-radius: var(--radius-sm); padding: 16px 18px; margin-top: 12px;
+  border: 1px solid; display: flex; align-items: flex-start; gap: 12px;
+}
+.elig-box.ok { background: var(--green-soft); border-color: rgba(34,197,94,0.3); color: #4ade80; }
+.elig-box.warn { background: var(--amber-soft); border-color: rgba(255,181,71,0.3); color: #fbbf24; }
+.elig-box-icon { font-size: 22px; flex-shrink: 0; }
+.elig-box-text { font-size: 13.5px; line-height: 1.6; color: var(--text); }
+.elig-box-text strong { font-weight: 700; }
+
+/* ============================================================ FORECAST BARS ============================================================ */
+.forecast-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
+.forecast-label { width: 40px; font-family: var(--mono); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.forecast-track { flex: 1; height: 10px; background: rgba(0,0,0,0.3); border-radius: 5px; overflow: hidden; }
+.forecast-fill { height: 100%; border-radius: 5px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+.forecast-pct { width: 72px; text-align: right; font-family: var(--mono); font-size: 11.5px; color: var(--text-2); flex-shrink: 0; }
+
+/* ============================================================ AI CHAT WIDGET ============================================================ */
+.chat-fab {
+  position: fixed; bottom: 28px; right: 28px; z-index: 90;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--red), #9b1c2e);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: #fff;
+  box-shadow: 0 8px 30px var(--red-glow);
+  transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+.chat-fab:hover { transform: scale(1.1) rotate(10deg); }
+.chat-panel {
+  position: fixed; bottom: 100px; right: 28px; z-index: 91;
+  width: 390px; max-width: 92vw; height: 540px; max-height: 75vh;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  display: none; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6); backdrop-filter: blur(20px);
+}
+.chat-panel.open { display: flex; animation: fadeSlide 0.3s cubic-bezier(0.16,1,0.3,1); }
+.chat-head {
+  padding: 18px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface-2);
+}
+.chat-head-info { display: flex; align-items: center; gap: 12px; }
+.chat-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--red), #9b1c2e);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.chat-head-name { font-weight: 700; font-size: 14px; }
+.chat-head-status { font-size: 11px; color: var(--teal); font-family: var(--mono); font-weight: 600; }
+.chat-close { background: none; border: none; color: var(--text-2); cursor: pointer; font-size: 20px; }
+.chat-close:hover { color: var(--text); }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.msg {
+  max-width: 85%; padding: 12px 16px; border-radius: 14px;
+  font-size: 13.5px; line-height: 1.55; word-break: break-word;
+}
+.msg.bot { background: var(--surface-2); border: 1px solid var(--border); align-self: flex-start; border-top-left-radius: 3px; }
+.msg.user { background: var(--red-dim); color: #fff; align-self: flex-end; border-top-right-radius: 3px; }
+.msg.thinking { background: transparent; border: none; color: var(--text-2); font-style: italic; display: flex; align-items: center; gap: 6px; align-self: flex-start; }
+.typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); animation: blink 1.4s ease infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%,80%,100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+.chat-chips { display: flex; gap: 6px; padding: 8px 18px; overflow-x: auto; }
+.chat-chip {
+  font-size: 11px; padding: 5px 12px; border-radius: 16px; flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); cursor: pointer; transition: all var(--transition);
+  font-family: var(--font); white-space: nowrap;
+}
+.chat-chip:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+.chat-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+.chat-input {
+  flex: 1; background: var(--bg-2); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 13.5px; outline: none; transition: border var(--transition);
+}
+.chat-input:focus { border-color: var(--red); }
+
+/* ============================================================ TOAST ============================================================ */
+.toast-container { position: fixed; top: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 18px;
+  font-size: 13.5px; font-weight: 500;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  display: flex; align-items: center; gap: 10px;
+  transform: translateX(110%); transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  min-width: 280px; max-width: 360px;
+  backdrop-filter: blur(12px);
+}
+.toast.show { transform: translateX(0); }
+.toast.success { border-color: rgba(34,197,94,0.35); }
+.toast.error { border-color: rgba(245,59,87,0.35); }
+.toast.info { border-color: rgba(74,158,255,0.35); }
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+
+/* ============================================================ MATCHING RESULT CARD ============================================================ */
+.match-result {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-top: 16px;
+}
+.match-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.match-text { font-size: 13.5px; line-height: 1.7; color: var(--text); margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.match-donors-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: var(--text-2); margin-bottom: 10px; font-family: var(--mono); }
+.match-donor-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.match-donor-row:last-child { border-bottom: none; }
+.match-donor-name { font-weight: 600; font-size: 13.5px; }
+.match-donor-sub { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+
+/* ============================================================ DONOR DETAIL ROW ============================================================ */
+.donor-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.donor-row:last-child { border-bottom: none; }
+.donor-name { font-weight: 600; }
+.donor-meta { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+.donor-type { font-family: var(--mono); font-weight: 700; color: var(--red); font-size: 18px; }
+
+/* ============================================================ PULSE LINE ============================================================ */
+.pulse-line { width: 100%; height: 24px; overflow: hidden; flex-shrink: 0; }
+.pulse-line svg { width: 200%; height: 100%; animation: pulse-scroll 8s linear infinite; }
+@keyframes pulse-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ============================================================ MOBILE ============================================================ */
+@media(max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .view { padding: 20px 16px; }
+  .vials-grid { grid-template-columns: repeat(4,1fr); }
+  .field-row, .field-row-3 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+}
+
+/* ============================================================ SECTION SPACER ============================================================ */
+.section { margin-bottom: 24px; }
+.section-title { font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; font-family: var(--mono); padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+/* ============================================================ COMPATIBILITY TABLE ============================================================ */
+.compat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.compat-cell { text-align: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 6px; }
+.compat-type { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+.compat-can { font-size: 10px; color: var(--text-2); margin-top: 4px; line-height: 1.4; }
+</style>
+</head>
+
+<body>
+<!-- ======================================================= TOAST CONTAINER ======================================================= -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ======================================================= APP SHELL ======================================================= -->
+<div class="app-shell">
+
+  <!-- ======================================================= SIDEBAR ======================================================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🩸</div>
+      <div>
+        <div class="logo-text">LIFELINE</div>
+        <div class="logo-sub">Blood Intelligence</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Dashboards</div>
+      <div class="nav-item active" data-view="admin" id="nav-admin">
+        <span class="nav-icon">🏥</span>
+        <span>Admin Control</span>
+      </div>
+      <div class="nav-item" data-view="donor" id="nav-donor">
+        <span class="nav-icon">🩸</span>
+        <span>Donor Portal</span>
+      </div>
+      <div class="nav-item" data-view="hospital" id="nav-hospital">
+        <span class="nav-icon">🏨</span>
+        <span>Hospital Portal</span>
+      </div>
+
+      <div class="nav-section-label">Analytics</div>
+      <div class="nav-item" data-view="forecast" id="nav-forecast">
+        <span class="nav-icon">📊</span>
+        <span>AI Forecast</span>
+      </div>
+      <div class="nav-item" data-view="compat" id="nav-compat">
+        <span class="nav-icon">🔬</span>
+        <span>Compatibility</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="db-status-card" id="dbStatusCard">
+        <div class="db-dot offline" id="dbDot"></div>
+        <div>
+          <div class="db-status-text" id="dbStatusText">Connecting...</div>
+          <div class="db-status-sub" id="dbStatusSub">MySQL 8.0</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ======================================================= MAIN CONTENT ======================================================= -->
+  <div class="main-content">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbarTitle">Admin Control Center</div>
+        <div class="topbar-sub" id="topbarSub">Live inventory, donor registry &amp; requisition management</div>
+      </div>
+      <div class="topbar-right">
+        <div class="role-switcher">
+          <button class="role-btn active" data-role="admin">Admin</button>
+          <button class="role-btn" data-role="donor">Donor</button>
+          <button class="role-btn" data-role="hospital">Hospital</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Pulse Line Animation -->
+    <div class="pulse-line">
+      <svg viewBox="0 0 600 24" preserveAspectRatio="none">
+        <polyline points="0,12 50,12 65,3 80,21 95,12 150,12 165,2 180,22 195,12 600,12" fill="none" stroke="#f53b57" stroke-width="1.6" opacity="0.6"/>
+        <polyline points="600,12 650,12 665,3 680,21 695,12 750,12 765,2 780,22 795,12 1200,12" fill="none" stroke="#f53b57" stroke-width="1.6" opacity="0.6"/>
+      </svg>
+    </div>
+
+    <!-- ======================================================= VIEW: ADMIN ======================================================= -->
+    <section class="view active" id="view-admin">
+      <div class="page-header">
+        <div class="eyebrow">Control Center</div>
+        <div class="page-title">Inventory &amp; Network Overview</div>
+        <div class="page-desc">Monitor live blood stocks, manage requisitions, adjust supply, and oversee the donor registry — all in real-time.</div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stats-grid" id="adminStats">
+        <div class="stat-card info"><div class="stat-icon">🩸</div><div class="stat-val">—</div><div class="stat-label">Total Units in Stock</div></div>
+        <div class="stat-card danger"><div class="stat-icon">⚠️</div><div class="stat-val">—</div><div class="stat-label">Critical Shortages</div></div>
+        <div class="stat-card success"><div class="stat-icon">👤</div><div class="stat-val">—</div><div class="stat-label">Registered Donors</div></div>
+        <div class="stat-card warning"><div class="stat-icon">📋</div><div class="stat-val">—</div><div class="stat-label">Pending Requisitions</div></div>
+      </div>
+
+      <!-- Inventory + Chart -->
+      <div class="two-col section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">🧪</span> Blood Inventory <span style="font-size:11px;color:var(--text-2);font-family:var(--mono);font-weight:400;">(hover card to adjust)</span></div>
+            <span class="badge badge-muted" id="critBadge">0 critical</span>
+          </div>
+          <div class="vials-grid" id="inventoryGrid"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📊</span> Stock Profile</div>
+            <span class="badge badge-blue">Live</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Requests + Donors -->
+      <div class="two-col section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📋</span> Hospital Requisitions</div>
+            <span class="badge badge-warn" id="pendingBadge">0 pending</span>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="searchAdminReqs" placeholder="Search by hospital, type, urgency…">
+          </div>
+          <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Hospital</th><th>Type</th><th>Units</th><th>Urgency</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="adminReqsBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">👥</span> Donor Registry</div>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="searchAdminDonors" placeholder="Search donors…">
+          </div>
+          <div style="max-height:340px;overflow-y:auto;" id="adminDonorList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= VIEW: DONOR ======================================================= -->
+    <section class="view" id="view-donor">
+      <div class="page-header">
+        <div class="eyebrow">Donor Portal</div>
+        <div class="page-title">Give Blood. Save Lives.</div>
+        <div class="page-desc">Register as a blood donor, check your donation eligibility, and browse the registered donor community.</div>
+      </div>
+
+      <div class="two-col section">
+        <!-- Register Form -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📝</span> Register as a Donor</div>
+          </div>
+          <div class="field">
+            <label>Full Name</label>
+            <input type="text" id="dName" placeholder="e.g. Ananya Roy">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Blood Type</label>
+              <select id="dType">
+                <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Phone Number</label>
+              <input type="text" id="dPhone" placeholder="98xxxxxxxx">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>City</label>
+              <input type="text" id="dCity" placeholder="e.g. Kolkata">
+            </div>
+            <div class="field">
+              <label>Last Donation Date</label>
+              <input type="date" id="dLast">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="registerDonorBtn">
+            Register as Donor
+          </button>
+        </div>
+
+        <!-- Eligibility + AI Ask -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">✅</span> Eligibility Checker</div>
+          </div>
+          <div class="field">
+            <label>Date of Last Whole Blood Donation</label>
+            <input type="date" id="eligDate">
+          </div>
+          <button class="btn btn-secondary btn-block" id="checkEligBtn">Check My Eligibility</button>
+          <div id="eligResult"></div>
+
+          <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--border);">
+            <div class="card-title" style="margin-bottom:14px;font-size:14px;"><span class="card-title-icon">🤖</span> Ask the Clinical AI</div>
+            <div class="field" style="margin-bottom:10px;">
+              <input type="text" id="donorAskInput" placeholder="e.g. Can I donate if I have diabetes?">
+            </div>
+            <button class="btn btn-secondary btn-block" id="donorAskBtn">Ask Lifeline AI</button>
+            <div id="donorAskResult" style="margin-top:12px;font-size:13.5px;color:var(--text-2);line-height:1.65;padding:12px;border-radius:var(--radius-sm);background:rgba(0,0,0,0.2);display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full Donor Roster -->
+      <div class="card section">
+        <div class="card-header">
+          <div class="card-title"><span class="card-title-icon">👥</span> Registered Donor Roster</div>
+          <span class="badge badge-teal" id="donorCountBadge">0 donors</span>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="searchRoster" placeholder="Filter by name, blood type, city, or eligibility…">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Blood Type</th><th>Phone</th><th>City</th><th>Last Donation</th><th>Eligibility Status</th></tr></thead>
+            <tbody id="donorRosterBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= VIEW: HOSPITAL ======================================================= -->
+    <section class="view" id="view-hospital">
+      <div class="page-header">
+        <div class="eyebrow">Hospital Portal</div>
+        <div class="page-title">Emergency Matching &amp; Logistics</div>
+        <div class="page-desc">Submit blood unit requisitions and instantly match the request to available inventory or compatible registered donors.</div>
+      </div>
+
+      <div class="two-col section">
+        <!-- Requisition Form -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">🚑</span> New Blood Requisition</div>
+          </div>
+          <div class="field">
+            <label>Hospital Name</label>
+            <input type="text" id="hName" placeholder="e.g. AMRI Hospital, Kolkata">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Required Blood Type</label>
+              <select id="hType">
+                <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Quantity (Units)</label>
+              <input type="number" id="hUnits" min="1" value="2">
+            </div>
+          </div>
+          <div class="field">
+            <label>Urgency Priority</label>
+            <select id="hUrgency">
+              <option value="routine">🟢 Routine — Standard replenishment</option>
+              <option value="urgent">🟡 Urgent — Scheduled operation</option>
+              <option value="critical">🔴 Critical — Active emergency / trauma</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-block" id="submitReqBtn">
+            File Blood Requisition
+          </button>
+        </div>
+
+        <!-- Matching Panel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">🧠</span> AI Matching Engine</div>
+          </div>
+          <div id="matchBody">
+            <div class="empty-state">
+              <div class="empty-state-icon">◈</div>
+              <div class="empty-state-title">Awaiting Requisition</div>
+              <div class="empty-state-desc">Submit a requisition above. The AI will instantly evaluate your stock and locate compatible donors.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Request History -->
+      <div class="card section">
+        <div class="card-header">
+          <div class="card-title"><span class="card-title-icon">📋</span> Requisition History &amp; Delivery Log</div>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="searchHistory" placeholder="Filter by hospital, blood type, or status…">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hospital</th><th>Blood Type</th><th>Units</th><th>Urgency</th><th>Date Filed</th><th>Status</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= VIEW: FORECAST ======================================================= -->
+    <section class="view" id="view-forecast">
+      <div class="page-header">
+        <div class="eyebrow">Analytics</div>
+        <div class="page-title">7-Day Shortage Risk Forecast</div>
+        <div class="page-desc">AI-powered predictive shortage analysis based on current stock levels, blood type rarity, and historical requisition velocity.</div>
+      </div>
+      <div class="two-col section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📉</span> Risk Coefficient by Blood Type</div>
+            <button class="btn btn-secondary btn-sm" id="runForecastBtn">Run Forecast</button>
+          </div>
+          <div id="forecastBody">
+            <div class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <div class="empty-state-title">Forecast Not Run</div>
+              <div class="empty-state-desc">Click "Run Forecast" to generate a 7-day shortage risk projection for each blood group.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">💡</span> How the Forecast Works</div>
+          </div>
+          <div style="font-size:13.5px;line-height:1.75;color:var(--text-2);">
+            <p style="margin-bottom:12px;">The AI model calculates a <strong style="color:var(--text);">shortage risk score (0–100%)</strong> for each of the 8 blood types by evaluating three key factors:</p>
+            <p style="margin-bottom:10px;display:flex;gap:10px;"><span style="color:var(--red);font-size:18px;">●</span><span><strong style="color:var(--text);">Current Stock Level</strong> — Lower stock = exponentially higher risk. Types with 0–2 units are flagged as critical.</span></p>
+            <p style="margin-bottom:10px;display:flex;gap:10px;"><span style="color:var(--amber);font-size:18px;">●</span><span><strong style="color:var(--text);">Blood Type Rarity</strong> — Negative blood types (O-, B-, AB-) are inherently rarer in the donor pool and receive an elevated baseline risk premium.</span></p>
+            <p style="margin-bottom:10px;display:flex;gap:10px;"><span style="color:var(--teal);font-size:18px;">●</span><span><strong style="color:var(--text);">Requisition Velocity</strong> — A high volume of recent hospital requests for a specific type accelerates its projected depletion timeline.</span></p>
+            <p style="margin-top:16px;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+              🤖 If a Gemini API key is configured in <span style="font-family:var(--mono);font-size:11px;color:var(--red);">.env</span>, the model uses generative AI for dynamic, context-aware forecasting. Otherwise, a high-fidelity local heuristics engine is used.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= VIEW: COMPATIBILITY ======================================================= -->
+    <section class="view" id="view-compat">
+      <div class="page-header">
+        <div class="eyebrow">Reference</div>
+        <div class="page-title">Blood Compatibility Matrix</div>
+        <div class="page-desc">Official ABO & Rh transfusion compatibility reference used by the Lifeline matching engine for emergency donor allocation.</div>
+      </div>
+
+      <div class="two-col-equal section">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="card-title-icon">🩸</span> Donor → Recipient Compatibility</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Donor Type</th><th>Can Donate To</th><th>Universal?</th></tr></thead>
+              <tbody>
+                <tr><td class="td-type">O−</td><td style="font-size:12px;font-family:var(--mono);">O−, O+, A−, A+, B−, B+, AB−, AB+</td><td><span class="badge badge-ok">Universal Donor</span></td></tr>
+                <tr><td class="td-type">O+</td><td style="font-size:12px;font-family:var(--mono);">O+, A+, B+, AB+</td><td></td></tr>
+                <tr><td class="td-type">A−</td><td style="font-size:12px;font-family:var(--mono);">A−, A+, AB−, AB+</td><td></td></tr>
+                <tr><td class="td-type">A+</td><td style="font-size:12px;font-family:var(--mono);">A+, AB+</td><td></td></tr>
+                <tr><td class="td-type">B−</td><td style="font-size:12px;font-family:var(--mono);">B−, B+, AB−, AB+</td><td></td></tr>
+                <tr><td class="td-type">B+</td><td style="font-size:12px;font-family:var(--mono);">B+, AB+</td><td></td></tr>
+                <tr><td class="td-type">AB−</td><td style="font-size:12px;font-family:var(--mono);">AB−, AB+</td><td></td></tr>
+                <tr><td class="td-type">AB+</td><td style="font-size:12px;font-family:var(--mono);">AB+</td><td><span class="badge badge-purple">Universal Recipient</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="card-title-icon">🔬</span> Key Clinical Facts</div></div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--red-soft);border:1px solid rgba(245,59,87,0.2);border-radius:var(--radius-sm);padding:14px 16px;">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--red);">🩸 O− Universal Donor</div>
+              <div style="font-size:13px;color:var(--text-2);line-height:1.6;">O negative blood can be transfused to any patient in an emergency regardless of their blood type, making it critically valuable in trauma situations.</div>
+            </div>
+            <div style="background:var(--purple-soft);border:1px solid rgba(168,85,247,0.2);border-radius:var(--radius-sm);padding:14px 16px;">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--purple);">💜 AB+ Universal Recipient</div>
+              <div style="font-size:13px;color:var(--text-2);line-height:1.6;">AB positive patients can safely receive any blood type. AB+ plasma can also be donated universally.</div>
+            </div>
+            <div style="background:var(--amber-soft);border:1px solid rgba(255,181,71,0.2);border-radius:var(--radius-sm);padding:14px 16px;">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--amber);">⚠️ Negative Types Are Rarer</div>
+              <div style="font-size:13px;color:var(--text-2);line-height:1.6;">Negative blood types (O−, A−, B−, AB−) represent ~15% of the population, making them harder to source and higher risk for shortages.</div>
+            </div>
+            <div style="background:var(--blue-soft);border:1px solid rgba(74,158,255,0.2);border-radius:var(--radius-sm);padding:14px 16px;">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--blue);">🗓️ 90-Day Donation Interval</div>
+              <div style="font-size:13px;color:var(--text-2);line-height:1.6;">Whole blood donors must wait a minimum of 90 days (about 3 months) between donations to allow full haemoglobin recovery.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- ======================================================= AI CHAT WIDGET ======================================================= -->
+<button class="chat-fab" id="chatFab" title="Ask Lifeline AI">✦</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-head">
+    <div class="chat-head-info">
+      <div class="chat-avatar">✦</div>
+      <div>
+        <div class="chat-head-name">Lifeline Assistant</div>
+        <div class="chat-head-status">● ONLINE</div>
+      </div>
+    </div>
+    <button class="chat-close" id="chatClose">✕</button>
+  </div>
+  <div class="chat-msgs scroll-thin" id="chatMsgs"></div>
+  <div class="chat-chips">
+    <div class="chat-chip" onclick="chatPreset('What is the 90-day rule?')">90-day rule</div>
+    <div class="chat-chip" onclick="chatPreset('Who is a universal donor?')">Universal donor</div>
+    <div class="chat-chip" onclick="chatPreset('Can O- receive A+ blood?')">O− compatibility</div>
+    <div class="chat-chip" onclick="chatPreset('How does the matching engine work?')">How matching works</div>
+  </div>
+  <div class="chat-footer">
+    <input class="chat-input" type="text" id="chatInput" placeholder="Ask about eligibility, compatibility…">
+    <button class="btn btn-primary btn-icon" id="chatSend">➤</button>
+  </div>
+</div>
+
+<!-- ======================================================= JAVASCRIPT ======================================================= -->
+<script>
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = { inventory: {}, donors: [], requests: [] };
+const BLOOD_TYPES = ["A+","A-","B+","B-","O+","O-","AB+","AB-"];
+const COMPAT = {
+  "O-":["O-","O+","A-","A+","B-","B+","AB-","AB+"],
+  "O+":["O+","A+","B+","AB+"],
+  "A-":["A-","A+","AB-","AB+"],
+  "A+":["A+","AB+"],
+  "B-":["B-","B+","AB-","AB+"],
+  "B+":["B+","AB+"],
+  "AB-":["AB-","AB+"],
+  "AB+":["AB+"]
+};
+let stockChart = null;
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+function toast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(t);
+  requestAnimationFrame(() => { requestAnimationFrame(() => { t.classList.add('show'); }); });
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, 3400);
+}
+
+/* =========================================================
+   API WRAPPER
+   ========================================================= */
+async function api(endpoint, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`/api${endpoint}`, opts);
+  const json = await res.json();
+  if (json.status === 'error') throw new Error(json.message);
+  setDbStatus(json.db !== false);
+  return json;
+}
+
+/* =========================================================
+   DB STATUS INDICATOR
+   ========================================================= */
+function setDbStatus(online) {
+  const dot = document.getElementById('dbDot');
+  const txt = document.getElementById('dbStatusText');
+  const sub = document.getElementById('dbStatusSub');
+  if (online) {
+    dot.className = 'db-dot online';
+    txt.textContent = 'MySQL Connected';
+    sub.textContent = 'blood_bank_db';
+  } else {
+    dot.className = 'db-dot offline';
+    txt.textContent = 'Offline Mode';
+    sub.textContent = 'In-memory storage';
+  }
+}
+
+/* =========================================================
+   SYNC STATE FROM BACKEND
+   ========================================================= */
+async function syncAll() {
+  try {
+    const [invRes, donRes, reqRes] = await Promise.all([
+      api('/inventory'), api('/donors'), api('/requests')
+    ]);
+    state.inventory = invRes.data;
+    state.donors = donRes.data;
+    state.requests = reqRes.data;
+    renderAll();
+  } catch(e) {
+    toast('Could not reach server: ' + e.message, 'error');
+  }
+}
+
+function renderAll() {
+  renderStats();
+  renderInventory();
+  renderAdminReqs();
+  renderAdminDonors();
+  renderDonorRoster();
+  renderHistory();
+}
+
+/* =========================================================
+   ADMIN: STATS
+   ========================================================= */
+function renderStats() {
+  const total = Object.values(state.inventory).reduce((a,b) => a+b, 0);
+  const critical = BLOOD_TYPES.filter(t => (state.inventory[t]||0) <= 4).length;
+  const pending = state.requests.filter(r => r.status === 'pending').length;
+
+  document.getElementById('adminStats').innerHTML = `
+    <div class="stat-card info"><div class="stat-icon">🩸</div><div class="stat-val">${total}</div><div class="stat-label">Total Units in Stock</div></div>
+    <div class="stat-card ${critical > 0 ? 'danger' : 'success'}"><div class="stat-icon">⚠️</div><div class="stat-val">${critical}</div><div class="stat-label">Critical Shortages</div></div>
+    <div class="stat-card success"><div class="stat-icon">👤</div><div class="stat-val">${state.donors.length}</div><div class="stat-label">Registered Donors</div></div>
+    <div class="stat-card ${pending > 0 ? 'warning' : 'info'}"><div class="stat-icon">📋</div><div class="stat-val">${pending}</div><div class="stat-label">Pending Requisitions</div></div>
+  `;
+  document.getElementById('pendingBadge').textContent = `${pending} pending`;
+  document.getElementById('critBadge').textContent = `${critical} critical`;
+  document.getElementById('donorCountBadge').textContent = `${state.donors.length} donors`;
+}
+
+/* =========================================================
+   ADMIN: INVENTORY VIALS + CHART
+   ========================================================= */
+function renderInventory() {
+  const grid = document.getElementById('inventoryGrid');
+  grid.innerHTML = BLOOD_TYPES.map(t => {
+    const u = state.inventory[t] || 0;
+    const pct = Math.min(100, (u / 25) * 100);
+    const cls = u <= 2 ? 'critical' : u <= 7 ? 'low' : 'ok';
+    return `
+      <div class="vial ${cls}">
+        <div class="vial-type">${t}</div>
+        <div class="vial-count">${u} units</div>
+        <div class="vial-bar-wrap"><div class="vial-bar-fill" style="width:${pct}%"></div></div>
+        <div class="vial-adjust">
+          <button class="adj-btn" onclick="adjustStock('${t}',-1)" title="Remove 1">−</button>
+          <button class="adj-btn" onclick="adjustStock('${t}',1)" title="Add 1">+</button>
+        </div>
+      </div>`;
+  }).join('');
+  updateChart();
+}
+
+async function adjustStock(type, delta) {
+  try {
+    const res = await api('/inventory/adjust', 'POST', { bloodType: type, amount: delta });
+    state.inventory[type] = res.units;
+    renderInventory();
+    renderStats();
+    toast(`${type} adjusted by ${delta > 0 ? '+' : ''}${delta} unit`, delta > 0 ? 'success' : 'info');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function updateChart() {
+  const counts = BLOOD_TYPES.map(t => state.inventory[t] || 0);
+  const colors = counts.map(v => v <= 2 ? 'rgba(245,59,87,0.75)' : v <= 7 ? 'rgba(255,181,71,0.75)' : 'rgba(0,212,170,0.75)');
+  const borders = counts.map(v => v <= 2 ? '#f53b57' : v <= 7 ? '#ffb547' : '#00d4aa');
+
+  const ctx = document.getElementById('stockChart').getContext('2d');
+  if (stockChart) {
+    stockChart.data.datasets[0].data = counts;
+    stockChart.data.datasets[0].backgroundColor = colors;
+    stockChart.data.datasets[0].borderColor = borders;
+    stockChart.update('active');
+    return;
+  }
+  stockChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: BLOOD_TYPES,
+      datasets: [{ label: 'Units', data: counts, backgroundColor: colors, borderColor: borders, borderWidth: 1.5, borderRadius: 5 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} units` } } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8892a4', font: { family: 'JetBrains Mono', size: 10 } } },
+        x: { grid: { display: false }, ticks: { color: '#8892a4', font: { family: 'JetBrains Mono', size: 11 } } }
+      }
+    }
+  });
+}
+
+/* =========================================================
+   ADMIN: REQUESTS TABLE
+   ========================================================= */
+function renderAdminReqs(q = '') {
+  const query = q || document.getElementById('searchAdminReqs').value.toLowerCase();
+  const tbody = document.getElementById('adminReqsBody');
+  const filtered = state.requests.filter(r =>
+    r.hospital.toLowerCase().includes(query) ||
+    r.bloodType.toLowerCase().includes(query) ||
+    r.urgency.toLowerCase().includes(query) ||
+    r.status.toLowerCase().includes(query)
+  );
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:28px"><div class="empty-state-icon">◇</div><div class="empty-state-desc">No matching requests</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const urgClass = r.urgency === 'critical' ? 'badge-crit' : r.urgency === 'urgent' ? 'badge-warn' : 'badge-ok';
+    const stClass = r.status === 'fulfilled' ? 'badge-teal' : r.status === 'cancelled' ? 'badge-muted' : 'badge-warn';
+    const isPending = r.status === 'pending';
+    return `<tr>
+      <td class="td-name">${r.hospital}</td>
+      <td><span class="td-type">${r.bloodType}</span></td>
+      <td>${r.units}</td>
+      <td><span class="badge ${urgClass}">${r.urgency}</span></td>
+      <td><span class="badge ${stClass}">${r.status}</span></td>
+      <td>
+        ${isPending ? `
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-success btn-sm" onclick="updateReqStatus(${r.id},'fulfilled')">✓ Fulfill</button>
+            <button class="btn btn-danger btn-sm" onclick="updateReqStatus(${r.id},'cancelled')">✕ Cancel</button>
+          </div>` : `<span class="td-muted">${new Date(r.date).toLocaleDateString()}</span>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('searchAdminReqs').addEventListener('input', e => renderAdminReqs(e.target.value.toLowerCase()));
+
+async function updateReqStatus(id, status) {
+  try {
+    await api(`/requests/${id}/status`, 'POST', { status });
+    toast(`Request marked as ${status}`, status === 'fulfilled' ? 'success' : 'info');
+    await syncAll();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+/* =========================================================
+   ADMIN: DONORS QUICK LIST
+   ========================================================= */
+function renderAdminDonors(q = '') {
+  const query = q || document.getElementById('searchAdminDonors').value.toLowerCase();
+  const el = document.getElementById('adminDonorList');
+  const filtered = state.donors.filter(d =>
+    d.name.toLowerCase().includes(query) ||
+    d.bloodType.toLowerCase().includes(query) ||
+    (d.city||'').toLowerCase().includes(query)
+  );
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:28px;"><div class="empty-state-icon">◇</div><div class="empty-state-desc">No donors registered yet</div></div>`;
+    return;
+  }
+  el.innerHTML = filtered.slice(0, 20).map(d => `
+    <div class="donor-row">
+      <div>
+        <div class="donor-name">${d.name}</div>
+        <div class="donor-meta">${d.city||'—'} · ${d.phone||'—'}</div>
+      </div>
+      <div class="donor-type">${d.bloodType}</div>
+    </div>`).join('');
+}
+document.getElementById('searchAdminDonors').addEventListener('input', e => renderAdminDonors(e.target.value.toLowerCase()));
+
+/* =========================================================
+   DONOR: REGISTER
+   ========================================================= */
+document.getElementById('registerDonorBtn').addEventListener('click', async () => {
+  const name = document.getElementById('dName').value.trim();
+  const bloodType = document.getElementById('dType').value;
+  const phone = document.getElementById('dPhone').value.trim();
+  const city = document.getElementById('dCity').value.trim();
+  const lastDonation = document.getElementById('dLast').value;
+
+  if (!name) { toast('Please enter your full name', 'error'); return; }
+
+  const btn = document.getElementById('registerDonorBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Registering…`;
+
+  try {
+    await api('/donors', 'POST', { name, bloodType, phone, city, lastDonation });
+    toast(`✅ ${name} registered successfully as a ${bloodType} donor!`, 'success');
+    document.getElementById('dName').value = '';
+    document.getElementById('dPhone').value = '';
+    document.getElementById('dCity').value = '';
+    document.getElementById('dLast').value = '';
+    await syncAll();
+  } catch(e) {
+    toast('Registration failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+});
+
+/* =========================================================
+   DONOR: ELIGIBILITY CHECK
+   ========================================================= */
+document.getElementById('checkEligBtn').addEventListener('click', () => {
+  const val = document.getElementById('eligDate').value;
+  const box = document.getElementById('eligResult');
+  if (!val) { toast('Please select a date first', 'warning'); return; }
+  const days = Math.floor((Date.now() - new Date(val)) / 86400000);
+  if (days >= 90) {
+    box.innerHTML = `<div class="elig-box ok"><div class="elig-box-icon">✅</div><div class="elig-box-text"><strong>You are eligible to donate!</strong><br>It has been <strong>${days} days</strong> since your last donation — well past the 90-day minimum interval. Thank you for being a lifesaver!</div></div>`;
+  } else {
+    box.innerHTML = `<div class="elig-box warn"><div class="elig-box-icon">⏳</div><div class="elig-box-text"><strong>Not yet eligible.</strong><br>Please wait <strong>${90 - days} more day(s)</strong>. The clinical minimum interval between whole blood donations is 90 days to allow full haemoglobin recovery.</div></div>`;
+  }
+});
+
+/* =========================================================
+   DONOR: AI CLINICAL ASK
+   ========================================================= */
+document.getElementById('donorAskBtn').addEventListener('click', async () => {
+  const q = document.getElementById('donorAskInput').value.trim();
+  const box = document.getElementById('donorAskResult');
+  if (!q) { toast('Please enter a question', 'warning'); return; }
+  box.style.display = 'block';
+  box.textContent = '🤖 Analyzing your question…';
+  try {
+    const res = await api('/ai/chat', 'POST', { question: q });
+    box.textContent = res.answer;
+  } catch(e) {
+    box.textContent = 'AI assistant is temporarily unavailable. Please try the chat widget.';
+  }
+});
+document.getElementById('donorAskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('donorAskBtn').click();
+});
+
+/* =========================================================
+   DONOR: FULL ROSTER TABLE
+   ========================================================= */
+function renderDonorRoster(q = '') {
+  const query = q || document.getElementById('searchRoster').value.toLowerCase();
+  const tbody = document.getElementById('donorRosterBody');
+  const filtered = state.donors.filter(d =>
+    d.name.toLowerCase().includes(query) ||
+    d.bloodType.toLowerCase().includes(query) ||
+    (d.city||'').toLowerCase().includes(query) ||
+    (d.phone||'').includes(query)
+  );
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:28px;"><div class="empty-state-icon">◇</div><div class="empty-state-title">No Donors Found</div><div class="empty-state-desc">Register a donor using the form on this page.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(d => {
+    const days = d.lastDonation_date ? Math.floor((Date.now() - new Date(d.lastDonation_date)) / 86400000) : null;
+    const eligible = days === null || days >= 90;
+    return `<tr>
+      <td class="td-name">${d.name}</td>
+      <td><span class="td-type">${d.bloodType}</span></td>
+      <td class="td-muted">${d.phone||'—'}</td>
+      <td class="td-muted">${d.city||'—'}</td>
+      <td class="td-muted">${d.lastDonation_date||'Never donated'}</td>
+      <td><span class="badge ${eligible ? 'badge-ok' : 'badge-warn'}">${eligible ? '✓ Eligible' : `${90 - days}d cooldown`}</span></td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('searchRoster').addEventListener('input', e => renderDonorRoster(e.target.value.toLowerCase()));
+
+/* =========================================================
+   HOSPITAL: SUBMIT REQUISITION
+   ========================================================= */
+document.getElementById('submitReqBtn').addEventListener('click', async () => {
+  const hospital = document.getElementById('hName').value.trim();
+  const bloodType = document.getElementById('hType').value;
+  const units = parseInt(document.getElementById('hUnits').value) || 1;
+  const urgency = document.getElementById('hUrgency').value;
+
+  if (!hospital) { toast('Please enter the hospital name', 'error'); return; }
+
+  const btn = document.getElementById('submitReqBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Filing…`;
+
+  try {
+    const res = await api('/requests', 'POST', { hospital, bloodType, units, urgency });
+    toast('Requisition filed successfully!', 'success');
+    document.getElementById('hName').value = '';
+    document.getElementById('hUnits').value = '2';
+    await syncAll();
+    runMatching(res.data);
+  } catch(e) {
+    toast('Submission failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+});
+
+/* =========================================================
+   HOSPITAL: AI MATCHING
+   ========================================================= */
+async function runMatching(req) {
+  const box = document.getElementById('matchBody');
+  box.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><span class="spinner" style="width:30px;height:30px;border-width:3px;"></span></div><div class="empty-state-desc" style="margin-top:12px;">Running AI matching…</div></div>`;
+
+  try {
+    const res = await api('/ai/match', 'POST', { requestId: req.id });
+    const stockOk = res.stock >= req.units;
+    box.innerHTML = `
+      <div class="match-result">
+        <div class="match-meta">
+          <span class="badge ${stockOk ? 'badge-ok' : 'badge-crit'}">${stockOk ? '✓ Stock Sufficient' : '⚠ Stock Insufficient'}</span>
+          <span class="badge badge-blue">${res.donors.length} compatible donors</span>
+          <span class="badge badge-muted">${res.stock} units available</span>
+        </div>
+        <div class="match-text">${res.recommendation}</div>
+        ${res.donors.length ? `
+          <div class="match-donors-title">Compatible Donor Pool</div>
+          ${res.donors.slice(0,5).map(d => `
+            <div class="match-donor-row">
+              <div>
+                <div class="match-donor-name">${d.name}</div>
+                <div class="match-donor-sub">${d.city||'—'} · ${d.phone||'—'}</div>
+              </div>
+              <span class="td-type">${d.bloodType}</span>
+            </div>`).join('')}
+        ` : '<div class="td-muted" style="font-size:13px;">No compatible donors found in registry.</div>'}
+      </div>`;
+  } catch(e) {
+    box.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-desc">Matching failed: ${e.message}</div></div>`;
+  }
+}
+
+/* =========================================================
+   HOSPITAL: REQUEST HISTORY TABLE
+   ========================================================= */
+function renderHistory(q = '') {
+  const query = q || document.getElementById('searchHistory').value.toLowerCase();
+  const tbody = document.getElementById('historyBody');
+  const filtered = state.requests.filter(r =>
+    r.hospital.toLowerCase().includes(query) ||
+    r.bloodType.toLowerCase().includes(query) ||
+    r.status.toLowerCase().includes(query) ||
+    r.urgency.toLowerCase().includes(query)
+  );
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:28px;"><div class="empty-state-icon">◇</div><div class="empty-state-title">No Requisitions Yet</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const urgClass = r.urgency === 'critical' ? 'badge-crit' : r.urgency === 'urgent' ? 'badge-warn' : 'badge-ok';
+    const stClass = r.status === 'fulfilled' ? 'badge-teal' : r.status === 'cancelled' ? 'badge-muted' : 'badge-warn';
+    const dt = new Date(r.date);
+    return `<tr>
+      <td class="td-name">${r.hospital}</td>
+      <td><span class="td-type">${r.bloodType}</span></td>
+      <td>${r.units} units</td>
+      <td><span class="badge ${urgClass}">${r.urgency}</span></td>
+      <td class="td-muted">${dt.toLocaleDateString()} ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+      <td><span class="badge ${stClass}">${r.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('searchHistory').addEventListener('input', e => renderHistory(e.target.value.toLowerCase()));
+
+/* =========================================================
+   FORECAST
+   ========================================================= */
+document.getElementById('runForecastBtn').addEventListener('click', async () => {
+  const box = document.getElementById('forecastBody');
+  box.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><span class="spinner" style="width:30px;height:30px;border-width:3px;"></span></div><div class="empty-state-desc" style="margin-top:12px;">Computing risk coefficients…</div></div>`;
+  try {
+    const res = await api('/ai/forecast', 'POST');
+    const data = res.data;
+    const colorFor = v => v >= 66 ? '#f53b57' : v >= 35 ? '#ffb547' : '#00d4aa';
+    box.innerHTML = `
+      <div style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13.5px;line-height:1.6;color:var(--text-2);">
+        <strong style="color:var(--text);">AI Summary:</strong> ${data.note||'Forecast complete.'}
+      </div>
+      ${BLOOD_TYPES.map(t => `
+        <div class="forecast-bar">
+          <div class="forecast-label">${t}</div>
+          <div class="forecast-track">
+            <div class="forecast-fill" style="width:${data[t]||0}%;background:${colorFor(data[t]||0)};"></div>
+          </div>
+          <div class="forecast-pct">${data[t]||0}% risk</div>
+        </div>`).join('')}
+      <div style="margin-top:16px;display:flex;gap:16px;font-size:11.5px;color:var(--text-2);font-family:var(--mono);">
+        <span style="color:#00d4aa;">■ Low (0–34%)</span>
+        <span style="color:#ffb547;">■ Medium (35–65%)</span>
+        <span style="color:#f53b57;">■ High (66–100%)</span>
+      </div>`;
+  } catch(e) {
+    box.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-desc">Forecast failed: ${e.message}</div></div>`;
+  }
+});
+
+/* =========================================================
+   NAVIGATION (Sidebar + Role Switcher)
+   ========================================================= */
+const viewMeta = {
+  admin:    { title: 'Admin Control Center', sub: 'Live inventory, donor registry & requisition management' },
+  donor:    { title: 'Donor Portal', sub: 'Registration, eligibility checking & donor roster' },
+  hospital: { title: 'Hospital Portal', sub: 'Blood requisitions & AI emergency matching' },
+  forecast: { title: 'AI Forecast Analytics', sub: '7-day shortage risk prediction per blood type' },
+  compat:   { title: 'Compatibility Matrix', sub: 'Transfusion compatibility reference guide' }
+};
+
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+
+  const view = document.getElementById(`view-${viewId}`);
+  const nav = document.getElementById(`nav-${viewId}`);
+  const roleBtn = document.querySelector(`.role-btn[data-role="${viewId}"]`);
+
+  if (view) view.classList.add('active');
+  if (nav) nav.classList.add('active');
+  if (roleBtn) roleBtn.classList.add('active');
+
+  const meta = viewMeta[viewId] || { title: viewId, sub: '' };
+  document.getElementById('topbarTitle').textContent = meta.title;
+  document.getElementById('topbarSub').textContent = meta.sub;
+}
+
+// Sidebar nav click
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => {
+    switchView(item.dataset.view);
+    syncAll();
+  });
+});
+
+// Role switcher (top-right)
+document.querySelectorAll('.role-btn[data-role]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchView(btn.dataset.role);
+    syncAll();
+  });
+});
+
+/* =========================================================
+   AI CHAT WIDGET
+   ========================================================= */
+const chatPanel = document.getElementById('chatPanel');
+const chatMsgs = document.getElementById('chatMsgs');
+
+document.getElementById('chatFab').addEventListener('click', () => {
+  chatPanel.classList.toggle('open');
+  if (!chatMsgs.children.length) {
+    appendMsg('bot', "👋 Hi! I'm Lifeline's clinical AI assistant. Ask me about blood type compatibility, donation eligibility, how the matching engine works, or anything about managing blood bank operations!");
+  }
+});
+document.getElementById('chatClose').addEventListener('click', () => chatPanel.classList.remove('open'));
+
+function appendMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.textContent = text;
+  chatMsgs.appendChild(div);
+  chatMsgs.scrollTop = chatMsgs.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if (!q) return;
+  appendMsg('user', q);
+  input.value = '';
+
+  const thinkDiv = document.createElement('div');
+  thinkDiv.className = 'msg thinking';
+  thinkDiv.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+  chatMsgs.appendChild(thinkDiv);
+  chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+  try {
+    const res = await api('/ai/chat', 'POST', { question: q });
+    thinkDiv.remove();
+    appendMsg('bot', res.answer);
+  } catch(e) {
+    thinkDiv.remove();
+    appendMsg('bot', "I couldn't reach the AI right now. Please try again in a moment.");
+  }
+}
+
+document.getElementById('chatSend').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+function chatPreset(text) {
+  document.getElementById('chatInput').value = text;
+  chatPanel.classList.add('open');
+  sendChat();
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async () => {
+  await syncAll();
+})();
+</script>
+</body>
+</html>
